@@ -18,6 +18,6 @@ jobs:
     runs-on: ubuntu-latest
 
 
-     steps:
-        - name: Bye  step
-          run : echo "Bye Bye!"
+    steps:
+      - name: Bye  step
+        run : echo "Bye Bye!"
