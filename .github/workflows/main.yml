@@ -14,10 +14,10 @@ jobs:
        - name: Hello Step
          run : echo "Hello From Git Hub Actions!"
 
-bye:
-  runs-on: ubuntu-latest
+  bye:
+    runs-on: ubuntu-latest
 
 
-  steps:
-       - name: Bye  step
-         run : echo "Bye Bye!"
+     steps:
+        - name: Bye  step
+          run : echo "Bye Bye!"
