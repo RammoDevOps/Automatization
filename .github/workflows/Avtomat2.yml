@@ -13,6 +13,12 @@ jobs:
     steps:
       - name: Hello Broski
         run: echo "Hello Broski"
+        
+      - name: Clone Repository
+        uses: actions/checkout@v4
+
+      - name: List Directories
+        run: ls -la
 
   How:
     runs-on: ubuntu-latest
