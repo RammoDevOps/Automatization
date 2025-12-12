@@ -21,8 +21,5 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install deps
-        run: pip install -r requirements.txt
-
       - name: Run tests
         run: python MyNumbers.py
