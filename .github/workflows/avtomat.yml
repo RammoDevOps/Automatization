@@ -1,0 +1,21 @@
+name: MyAvtomat
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  Hello:
+    runs-on: ubuntu_latest
+    steps:
+      - name: Hello My Fellas
+        run: echo "Hello Ma Fellas"
+
+  Bye:
+    runs-on: ubuntu_latest
+    steps:
+      - name: Bye Bye 
+        run: echo "Bye Bye My Fellas"
