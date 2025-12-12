@@ -1,5 +1,9 @@
 name: Avtamat
 
+env:
+  APP_NAME: "My Aplication"
+  APP_PACKAGE: "my_app_${{ github.sha }}"
+
 on:
   push: 
     branches: [ "main" ]
@@ -20,6 +24,11 @@ jobs:
     steps:
       - name: Clone Repo
         uses: actions/checkout@v4
+
+      - name: Pipeline Example
+        run: |
+          echo "App Name: ${{ env.APP_NAME }}"
+          echo "App Package: ${{ env.APP_PACKAGE }}"
 
       - name: Python Setup
         uses: actions/setup-python@v6
