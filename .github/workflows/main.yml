@@ -1,0 +1,13 @@
+name: ye
+
+on:
+  workflow_dispatch:
+
+jobs:
+  Hello-Java:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hello world java
+        uses: actions/hello-world-javascript-action@main
+        with:
+          who-to-greet: "Hello World From Java Actions"
