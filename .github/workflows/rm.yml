@@ -28,4 +28,4 @@ jobs:
           name: Artifact
 
       - name: Read File
-        run: Cat Artifact.txt
+        run: cat Artifact.txt
