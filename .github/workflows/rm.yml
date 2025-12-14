@@ -1,0 +1,31 @@
+name: TestArtifact
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  Create-Artefact:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Artefact
+        run: |
+          echo "Random Artefact" > Artifact.txt
+          echo "This Arefact Is Best" >> Artifact.txt
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Artifact
+          path: Artifact.txt
+
+  Consume-Artifact:
+    runs-on: ubuntu-latest
+    needs: [ Create-Artefact ]
+    steps:
+      - name: Download Artefact
+        uses: actions/download-artifact@v4
+        with:
+          name: Artifact
+
+      - name: Read File
+        run: Cat Artifact.txt
