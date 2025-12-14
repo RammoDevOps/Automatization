@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
-        python-version: [3.12]
+        python-version: ["3.12"]
     timeout-minutes: 3
     needs: [Hello]
     steps:
@@ -29,7 +29,8 @@ jobs:
 
       - name: Python Setup
         uses: actions/setup-python@v6
-        with: ${{ matrix.python-version }}
+        with: 
+          python-version: ${{ matrix.python-version }}
 
       - name:  Run-script
         run: python MyNumbers.py
