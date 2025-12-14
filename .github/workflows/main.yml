@@ -1,0 +1,11 @@
+name: ye
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  Hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: run-hello in python
+        run: print("Hello World")
