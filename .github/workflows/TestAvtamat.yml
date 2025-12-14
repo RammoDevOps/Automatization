@@ -1,0 +1,43 @@
+name: TestAvtamat
+
+on: 
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  Hello:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Hello World
+        run: echo "Hello World"
+
+  Script-Test:
+    runs-on: ${{ "matrix.os" }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        python-version: [3.12]
+    timeout-minutes: 3
+    needs: [Hello]
+    steps:
+      - name: Repo Cloning
+        uses: actions/checkout@v4
+
+      - name: Python Setup
+        uses: actions/setup-python@v6
+        with: ${{ matrix.python-version }}
+
+      - name:  Run-script
+        run: python MyNumbers.py
+
+  Bye-Bye:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: [ Hello, Script-Test ]
+    steps:
+      - name: Bye Bye 
+        run: echo "Bye Bye Bro"
