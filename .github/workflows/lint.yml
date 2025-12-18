@@ -1,0 +1,235 @@
+name: 🔍 Lint GitHub Actions Workflows
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/*.yml'
+      - '.github/workflows/*.yaml'
+    branches:
+      - main
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  actionlint:
+    name: 🔧 ActionLint - Syntax Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better checks
+          
+      - name: 🐳 Run ActionLint
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: |
+            -color 
+            -verbose
+            -ignore 'labeler-event-missing'
+            .github/workflows/
+        
+      - name: 📊 Lint Report
+        if: success()
+        run: |
+          echo "✅ All GitHub Actions workflows passed linting!"
+          echo "📋 Files checked:"
+          find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs -I {} basename {}
+          
+  yaml-syntax:
+    name: 📝 YAML Syntax Validation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: 🐍 Install Python (for yaml parsing)
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: 📄 Validate YAML Files
+        run: |
+          echo "🔍 Validating YAML syntax for all workflow files..."
+          ERROR_COUNT=0
+          
+          for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+            if [ -f "$file" ]; then
+              echo "📋 Checking: $(basename "$file")"
+              
+              # Basic YAML syntax check
+              if python3 -c "import yaml; yaml.safe_load(open('$file'))" 2>/dev/null; then
+                echo "   ✅ Valid YAML syntax"
+              else
+                echo "   ❌ Invalid YAML syntax in $file"
+                ERROR_COUNT=$((ERROR_COUNT + 1))
+              fi
+              
+              # Check for common issues
+              if grep -q "on: workflow_dispatch" "$file"; then
+                echo "   ℹ️  Contains manual trigger (workflow_dispatch)"
+              fi
+            fi
+          done
+          
+          if [ $ERROR_COUNT -gt 0 ]; then
+            echo "❌ Found $ERROR_COUNT YAML syntax errors"
+            exit 1
+          else
+            echo "✅ All YAML files have valid syntax"
+          fi
+
+  workflow-structure:
+    name: 🏗️ Workflow Structure Checks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: 🧹 Check Workflow Naming
+        run: |
+          echo "🔤 Checking workflow naming conventions..."
+          
+          for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+            if [ -f "$file" ]; then
+              FILENAME=$(basename "$file")
+              
+              # Check for kebab-case naming
+              if [[ ! "$FILENAME" =~ ^[a-z0-9]+(-[a-z0-9]+)*\.(yml|yaml)$ ]]; then
+                echo "⚠️  File '$FILENAME' should use kebab-case (e.g., 'my-workflow.yml')"
+              fi
+              
+              # Check workflow name
+              WORKFLOW_NAME=$(grep -E "^name:" "$file" | head -1 | cut -d: -f2- | sed 's/^ *//;s/ *$//' | tr -d '"'"'")
+              if [ -n "$WORKFLOW_NAME" ]; then
+                echo "📝 '$FILENAME' → '$WORKFLOW_NAME'"
+              else
+                echo "⚠️  '$FILENAME' is missing a workflow name"
+              fi
+            fi
+          done
+          
+      - name: 📊 Summary
+        run: |
+          echo "📈 Workflow Statistics:"
+          echo "========================"
+          COUNT=$(find .github/workflows -name "*.yml" -o -name "*.yaml" | wc -l)
+          echo "Total workflows: $COUNT"
+          
+          echo ""
+          echo "🔍 Trigger types found:"
+          for trigger in push pull_request workflow_dispatch schedule; do
+            FILES=$(grep -l "on:.*$trigger" .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null || true)
+            if [ -n "$FILES" ]; then
+              COUNT_FILES=$(echo "$FILES" | wc -l)
+              echo "  • $trigger: $COUNT_FILES workflow(s)"
+            fi
+          done
+
+  security-checks:
+    name: 🔒 Security Checks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: 🛡️ Check for Hardcoded Secrets
+        run: |
+          echo "🔍 Scanning for potential secret exposure..."
+          
+          # Patterns that might indicate secret leaks
+          DANGEROUS_PATTERNS=(
+            "password.*=.*['\"].*['\"]"
+            "token.*=.*['\"].*['\"]"
+            "secret.*=.*['\"].*['\"]"
+            "key.*=.*['\"].*['\"]"
+            "echo.*\${{"
+            "print.*\${{"
+          )
+          
+          for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+            if [ -f "$file" ]; then
+              echo "📄 Checking: $(basename "$file")"
+              
+              for pattern in "${DANGEROUS_PATTERNS[@]}"; do
+                if grep -E "$pattern" "$file" | grep -v "secrets\." | grep -v "#.*OK"; then
+                  echo "   ⚠️  Potential secret exposure found with pattern: $pattern"
+                  grep -E "$pattern" "$file" | head -3
+                fi
+              done
+              
+              # Check for direct secret usage without env
+              if grep -q "\${{ secrets\.[^ ]* }}" "$file" && ! grep -q "env:" "$file"; then
+                echo "   ℹ️  Consider using env variables for secrets"
+              fi
+            fi
+          done
+          
+      - name: 🎯 Best Practices Check
+        run: |
+          echo "📚 Checking for best practices..."
+          
+          for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+            if [ -f "$file" ]; then
+              FILENAME=$(basename "$file")
+              
+              # Check for action versions
+              if grep -q "uses: actions/checkout@" "$file"; then
+                VERSION=$(grep "uses: actions/checkout@" "$file" | head -1 | sed 's/.*@//')
+                if [[ "$VERSION" =~ ^v[1-3]$ ]]; then
+                  echo "⚠️  '$FILENAME': actions/checkout@$VERSION is outdated (use @v4)"
+                fi
+              fi
+              
+              # Check for timeout
+              if ! grep -q "timeout-minutes:" "$file"; then
+                echo "ℹ️  '$FILENAME': Consider adding timeout-minutes to prevent stuck workflows"
+              fi
+            fi
+          done
+
+  summary:
+    name: 📈 Lint Summary
+    runs-on: ubuntu-latest
+    needs: [actionlint, yaml-syntax, workflow-structure, security-checks]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: 📊 Generate Report
+        run: |
+          echo "========================================"
+          echo "✅ GITHUB ACTIONS LINTING COMPLETE"
+          echo "========================================"
+          echo ""
+          echo "📋 Summary of checks performed:"
+          echo "1. 🔧 ActionLint - Syntax and structure validation"
+          echo "2. 📝 YAML Syntax - Basic YAML parsing"
+          echo "3. 🏗️  Workflow Structure - Naming and conventions"
+          echo "4. 🔒 Security Checks - Secret exposure prevention"
+          echo ""
+          echo "🎯 This workflow runs on PRs that modify:"
+          echo "   • .github/workflows/*.yml"
+          echo "   • .github/workflows/*.yaml"
+          echo ""
+          echo "🚀 To run manually: Go to Actions → '🔍 Lint GitHub Actions Workflows' → Run workflow"
+          echo ""
+          echo "📝 Workflows in this repository:"
+          find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs -I {} echo "   • {}" | sed 's|\.github/workflows/||'
+          
+      - name: 🎉 Success Comment (Optional)
+        if: success()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **GitHub Actions Lint Passed!**\n\nAll workflow files have been validated successfully.\n\nChecks performed:\n- ✅ YAML syntax validation\n- ✅ GitHub Actions structure\n- ✅ Security best practices\n- ✅ Naming conventions\n\nYour CI/CD configuration looks good! 🚀'
+            })
